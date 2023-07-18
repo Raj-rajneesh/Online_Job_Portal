@@ -2,6 +2,7 @@ from django.shortcuts import render,redirect
 from .models import *
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,login,logout
+from datetime import date
 
 # Create your views here......
 def index(request):
@@ -256,4 +257,156 @@ def change_passwordrecruiter(request):
     d={'error':error}
     return render(request,'change_passwordrecruiter.html',d)
 
+def add_job(request):
+    if not request.user.is_authenticated:
+        return redirect('recruiter_login')
+    error=""
+    if request.method == 'POST':
+        jt=request.POST['jobtitle']
+        sd=request.POST['startdate']
+        ed=request.POST['enddate']
+        sal=request.POST['salary']
+        logo=request.FILES['logo']
+        exp=request.POST['experience']
+        loc=request.POST['location']
+        skills=request.POST['skills']
+        des=request.POST['description']
+        user=request.user
+        recruiter =Recruiter.objects.get(user=user)
+        try:
+            Job.objects.create(recruiter=recruiter,start_date=sd,end_date=ed,title=jt,salary=sal,image=logo,description=des,experience=exp,location=loc,skills=skills,creationdate=date.today())
+            error = "no"
+        except:
+            error = "yes"
+    d={'error':error}
+    return render(request,'add_job.html',d)
 
+def job_list(request):
+    if not request.user.is_authenticated:
+        return redirect('recruiter_login')
+    user = request.user
+    recruiter = Recruiter.objects.get(user=user)
+    job = Job.objects.filter(recruiter=recruiter)
+    d = {'job':job}
+     
+    return render(request,'job_list.html',d)
+
+def edit_jobdetail(request,pid):
+    if not request.user.is_authenticated:
+        return redirect('recruiter_login')
+    error=""
+    job = Job.objects.get(id=pid)
+
+    if request.method == 'POST':
+        jt=request.POST['jobtitle']
+        sd=request.POST['startdate']
+        ed=request.POST['enddate']
+        sal=request.POST['salary']
+        # logo=request.FILES['logo']
+        exp=request.POST['experience']
+        loc=request.POST['location']
+        skills=request.POST['skills']
+        des=request.POST['description']
+        
+        job.title=jt
+        job.salary=sal
+        job.experience=exp
+        job.location=loc
+        job.skills=skills
+        job.description=des
+
+        try:
+            job.save()
+            error = "no"
+        except:
+            error = "yes"
+        if sd:
+            try:
+                job.start_date=sd
+                job.save()
+            except:
+                pass
+        else:
+            pass
+
+        if ed:
+            try:
+                job.end_date=ed
+                job.save()
+            except:
+                pass
+        else:
+            pass
+    d={'error':error,'job': job}
+    return render(request,'edit_jobdetail.html',d)
+
+def change_companylogo(request,pid):
+    if not request.user.is_authenticated:
+        return redirect('recruiter_login')
+    error=""
+    job = Job.objects.get(id=pid)
+    if request.method == 'POST':
+        cl=request.FILES['logo']
+        job.image=cl
+        try:
+            job.save()
+            error = "no"
+        except:
+            error = "yes"
+    d={'error':error,'job': job}
+    return render(request,'change_companylogo.html',d)
+
+def latest_jobs(request):
+    job=Job.objects.all().order_by('-start_date')
+    d={'job':job}
+    return render(request,'latest_jobs.html',d)
+
+def user_latestjobs(request):
+    job=Job.objects.all().order_by('-start_date')
+    user = request.user
+    student = StudentUser.objects.get(user=user)
+    data = Apply.objects.filter(student=student)
+    li=[]
+    for i in data:
+        li.append(i.job.id)
+    d={'job':job,'li':li}
+    return render(request,'user_latestjobs.html',d)
+
+def job_detail(request,pid):
+    job=Job.objects.get(id=pid)
+    d={'job':job}
+    return render(request,'job_detail.html',d)
+
+def applyforjob(request,pid):
+    if not request.user.is_authenticated:
+        return redirect('user_login')
+    error=""
+    user = request.user
+    student = StudentUser.objects.get(user=user)
+    job = Job.objects.get(id=pid)
+    date1 = date.today()
+    if job.end_date < date1:
+        error= "close"
+    elif job.start_date > date1:
+        error = "notopen"
+    else:
+        if request.method == 'POST':
+            resume=request.FILES['resume']
+            Apply.objects.create(job=job,student=student,resume=resume,applydate=date.today())
+            error="successfull"
+            
+    d={'error':error}
+    return render(request,'applyforjob.html',d)
+
+def applied_candidatelist(request):
+    if not request.user.is_authenticated:
+        return redirect('recruiter_login')
+
+    data= Apply.objects.all()
+    
+    d={'data':data}
+    return render(request,'applied_candidatelist.html',d)
+
+def contact(request):
+    return render(request,'contact.html')       
+   
